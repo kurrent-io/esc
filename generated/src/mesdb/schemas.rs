@@ -7,6 +7,21 @@ use chrono::Utc;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Acl {
+    ResourceIdentifier(ResourceIdentifier),
+    CreateAclRequest(CreateAclRequest),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AclCidrBlock {
+    pub address: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Backup {
     pub available_node_count: i32,
@@ -89,8 +104,7 @@ pub struct Cluster {
     pub projection_level: ProjectionLevel,
     pub protected: bool,
     pub provider: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub public_access: Option<bool>,
+    pub public_access: bool,
     pub region: String,
     pub server_version: String,
     pub server_version_tag: String,
@@ -101,6 +115,7 @@ pub struct Cluster {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClusterCreateVersion {
+    pub name: String,
     pub lts: bool,
     pub recommended: bool,
     pub tag: String,
@@ -138,12 +153,20 @@ pub enum ClusterStatus {
     Resizing,
     #[serde(rename = "stopping")]
     Stopping,
+    #[serde(rename = "starting")]
+    Starting,
     #[serde(rename = "updating configuration")]
     UpdatingConfiguration,
     #[serde(rename = "compute available")]
     ComputeAvailable,
     #[serde(rename = "installing")]
     Installing,
+    #[serde(rename = "deploying")]
+    Deploying,
+    #[serde(rename = "updating")]
+    Updating,
+    #[serde(rename = "deleting")]
+    Deleting,
 }
 impl std::fmt::Display for ClusterStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -162,9 +185,13 @@ impl std::fmt::Display for ClusterStatus {
             ClusterStatus::Deleted => write!(f, "deleted"),
             ClusterStatus::Resizing => write!(f, "resizing"),
             ClusterStatus::Stopping => write!(f, "stopping"),
+            ClusterStatus::Starting => write!(f, "starting"),
             ClusterStatus::UpdatingConfiguration => write!(f, "updating configuration"),
             ClusterStatus::ComputeAvailable => write!(f, "compute available"),
             ClusterStatus::Installing => write!(f, "installing"),
+            ClusterStatus::Deploying => write!(f, "deploying"),
+            ClusterStatus::Updating => write!(f, "updating"),
+            ClusterStatus::Deleting => write!(f, "deleting"),
         }
     }
 }
@@ -185,9 +212,13 @@ impl std::cmp::PartialEq<&str> for ClusterStatus {
             ClusterStatus::Deleted => *other == "deleted",
             ClusterStatus::Resizing => *other == "resizing",
             ClusterStatus::Stopping => *other == "stopping",
+            ClusterStatus::Starting => *other == "starting",
             ClusterStatus::UpdatingConfiguration => *other == "updating configuration",
             ClusterStatus::ComputeAvailable => *other == "compute available",
             ClusterStatus::Installing => *other == "installing",
+            ClusterStatus::Deploying => *other == "deploying",
+            ClusterStatus::Updating => *other == "updating",
+            ClusterStatus::Deleting => *other == "deleting",
         }
     }
 }
@@ -201,11 +232,19 @@ impl std::cmp::PartialEq<ClusterStatus> for &str {
 #[serde(rename_all = "camelCase")]
 pub struct ClusterUpgradeVersion {
     pub change: UpgradeChangeType,
+    pub name: String,
     pub lts: bool,
     pub recommended: bool,
     pub tag: String,
     pub version: String,
     pub warnings: Vec<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateAclRequest {
+    pub cidr_blocks: Vec<AclCidrBlock>,
+    pub description: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -236,6 +275,10 @@ pub struct CreateClusterRequest {
     pub instance_type: String,
     pub network_id: NetworkId,
     pub projection_level: ProjectionLevel,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub region: Option<String>,
     pub server_version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_backup_id: Option<String>,
@@ -254,6 +297,39 @@ pub struct CreateClusterRequest {
 #[serde(rename_all = "camelCase")]
 pub struct CreateClusterResponse {
     pub id: ClusterId,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSharedClusterDeploymentRequest {
+    pub cluster: CreateSharedClusterRequest,
+    pub acl: Acl,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSharedClusterRequest {
+    pub name: String,
+    pub provider: String,
+    pub region: String,
+    pub projection_level: ProjectionLevel,
+    pub server_version: String,
+    pub topology: Topology,
+    pub deployment_tier: String,
+    pub mutual_tls_enabled: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSharedClusterResponse {
+    pub id: ClusterId,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Credentials {
+    pub username: String,
+    pub password: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -280,6 +356,19 @@ pub struct GetBackupResponse {
 #[serde(rename_all = "camelCase")]
 pub struct GetClusterResponse {
     pub cluster: Cluster,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetSharedClusterInitialCredentialsResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub credentials: Option<Credentials>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetSharedClusterResponse {
+    pub cluster: SharedCluster,
 }
 
 /// The health of the database
@@ -348,6 +437,12 @@ pub struct ListClusterUpgradeVersionsResponse {
     pub versions: Vec<ClusterUpgradeVersion>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListSharedClustersResponse {
+    pub clusters: Vec<SharedCluster>,
+}
+
 /// The projection level of your database. Can be off, system or user
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -394,8 +489,39 @@ pub struct ResizeClusterResponse {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ResourceIdentifier {
+    pub id: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RestartClusterResponse {
     pub id: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SharedCluster {
+    pub created: DateTime<Utc>,
+    pub name: String,
+    pub id: ClusterId,
+    pub organization_id: OrganizationId,
+    pub project_id: ProjectId,
+    pub acl_id: String,
+    pub projection_level: ProjectionLevel,
+    pub provider: String,
+    pub region: String,
+    pub server_version: String,
+    pub server_version_tag: String,
+    pub status: ClusterStatus,
+    pub topology: Topology,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub connection_url: Option<String>,
+    pub mutual_tls_enabled: bool,
+    pub per_node_cores: String,
+    pub per_node_memory: i32,
+    pub per_node_volume_size: i32,
+    pub deployment_tier: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -410,19 +536,25 @@ pub struct StopClusterResponse {
     pub id: String,
 }
 
-/// Either single-node or three-node-multi-zone
+/// Either single-node, three-node-multi-zone, three-node or five-node
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Topology {
     #[serde(rename = "single-node")]
     SingleNode,
     #[serde(rename = "three-node-multi-zone")]
     ThreeNodeMultiZone,
+    #[serde(rename = "three-node")]
+    ThreeNode,
+    #[serde(rename = "five-node")]
+    FiveNode,
 }
 impl std::fmt::Display for Topology {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Topology::SingleNode => write!(f, "single-node"),
             Topology::ThreeNodeMultiZone => write!(f, "three-node-multi-zone"),
+            Topology::ThreeNode => write!(f, "three-node"),
+            Topology::FiveNode => write!(f, "five-node"),
         }
     }
 }
@@ -431,6 +563,8 @@ impl std::cmp::PartialEq<&str> for Topology {
         match self {
             Topology::SingleNode => *other == "single-node",
             Topology::ThreeNodeMultiZone => *other == "three-node-multi-zone",
+            Topology::ThreeNode => *other == "three-node",
+            Topology::FiveNode => *other == "five-node",
         }
     }
 }
@@ -449,6 +583,15 @@ pub struct UpdateClusterRequest {
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub protected: Option<bool>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateSharedClusterRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mutual_tls_enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acl_id: Option<String>,
 }
 
 /// The type of change in an upgrade

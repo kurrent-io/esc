@@ -170,3 +170,74 @@ impl ToV1 for esc_api::mesdb::ListBackupsResponse {
         List(l)
     }
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SharedCluster {
+    pub id: esc_api::mesdb::ClusterId,
+    pub org_id: OrgId,
+    pub project_id: esc_api::resources::ProjectId,
+    pub name: String,
+    pub provider: Provider,
+    pub region: String,
+    pub topology: esc_api::mesdb::Topology,
+    pub deployment_tier: String,
+    pub mutual_tls_enabled: bool,
+    pub per_node_cores: String,
+    pub per_node_memory: usize,
+    pub per_node_volume_size: usize,
+    pub status: String,
+    pub created: String,
+    pub acl_id: String,
+    pub projection_level: esc_api::mesdb::ProjectionLevel,
+    pub server_version: String,
+    pub server_version_tag: String,
+}
+
+impl ToV1 for esc_api::mesdb::SharedCluster {
+    type V1Type = SharedCluster;
+    fn to_v1(self) -> Self::V1Type {
+        SharedCluster {
+            created: self.created.to_rfc3339(),
+            id: self.id,
+            name: self.name,
+            org_id: self.organization_id.to_v1(),
+            project_id: self.project_id,
+            provider: Provider::from_string(&self.provider),
+            region: self.region,
+            topology: self.topology,
+            deployment_tier: self.deployment_tier,
+            mutual_tls_enabled: self.mutual_tls_enabled,
+            per_node_cores: self.per_node_cores,
+            per_node_memory: self.per_node_memory as usize,
+            per_node_volume_size: self.per_node_volume_size as usize,
+            status: self.status.to_string(),
+            acl_id: self.acl_id,
+            projection_level: self.projection_level,
+            server_version: self.server_version,
+            server_version_tag: self.server_version_tag,
+        }
+    }
+}
+
+impl ToV1 for esc_api::mesdb::CreateSharedClusterResponse {
+    type V1Type = esc_api::mesdb::ClusterId;
+    fn to_v1(self) -> Self::V1Type {
+        self.id
+    }
+}
+
+impl ToV1 for esc_api::mesdb::GetSharedClusterResponse {
+    type V1Type = SharedCluster;
+    fn to_v1(self) -> Self::V1Type {
+        self.cluster.to_v1()
+    }
+}
+
+impl ToV1 for esc_api::mesdb::ListSharedClustersResponse {
+    type V1Type = List<SharedCluster>;
+    fn to_v1(self) -> Self::V1Type {
+        let l = self.clusters.into_iter().map(|c| c.to_v1()).collect();
+        List(l)
+    }
+}
