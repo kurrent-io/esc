@@ -1,7 +1,7 @@
 [CmdletBinding()]
 Param(
   [Parameter(Mandatory=$true)]
-  [ValidateSet("windows-2019", "ubuntu-20.04", "macos-11")]
+  [ValidateSet("windows-2019", "ubuntu-22.04", "macos-13")]
   [string]$Runner,
 
   [Parameter(Mandatory=$true)]

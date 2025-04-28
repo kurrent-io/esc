@@ -14,6 +14,7 @@ mod v1;
 
 use cidr::Cidr;
 use esc_api::resources::MfaStatus;
+
 use esc_api::{GroupId, MemberId, OrgId};
 use output::OutputFormat;
 use serde::Serialize;
@@ -1013,6 +1014,7 @@ struct Mesdb {
 enum MesdbCommand {
     Clusters(Clusters),
     Backups(Backups),
+    SharedClusters(SharedClusters),
 }
 
 #[derive(Debug, StructOpt)]
@@ -1074,7 +1076,7 @@ struct CreateCluster {
 
     #[structopt(
         long,
-        help = "Type of disk. For example, if you are using AWS as a provider, it could be GP2"
+        help = "Type of disk. For example, if you are using AWS as a provider, it could be GP2"
     )]
     disk_type: String,
 
@@ -1102,6 +1104,12 @@ struct CreateCluster {
 
     #[structopt(long, help = "The protected flag prevents from accidental deletion")]
     protected: Option<bool>,
+
+    #[structopt(long, help = "The provider of the cluster")]
+    provider: Option<String>,
+
+    #[structopt(long, help = "The region of the cluster")]
+    region: Option<String>,
 }
 
 #[derive(Debug, StructOpt)]
@@ -1246,6 +1254,97 @@ struct UpgradeCluster {
         help = "The target tag you want to upgrade to. This must include the full version (23.10.1)."
     )]
     target_tag: String,
+}
+
+#[derive(Debug, StructOpt)]
+#[structopt(about = "Gathers shared cluster management commands")]
+struct SharedClusters {
+    #[structopt(subcommand)]
+    shared_clusters_command: SharedClustersCommand,
+}
+
+#[derive(Debug, StructOpt)]
+enum SharedClustersCommand {
+    Create(CreateSharedCluster),
+    List(ListSharedClusters),
+    Delete(DeleteSharedCluster),
+    Get(GetSharedCluster),
+}
+
+#[derive(Debug, StructOpt)]
+struct CreateSharedCluster {
+    #[structopt(long, parse(try_from_str = parse_org_id), default_value = "", help = "The organization id the cluster relates to")]
+    org_id: OrgId,
+
+    #[structopt(long, parse(try_from_str = parse_project_id), default_value = "", help = "The project id the cluster relates to")]
+    project_id: esc_api::resources::ProjectId,
+
+    #[structopt(long, parse(try_from_str = parse_acl_id), help = "The acl id the cluster relates to")]
+    acl_id: esc_api::infra::AclId,
+
+    #[structopt(long, help = "The name of the cluster")]
+    name: String,
+
+    #[structopt(long, help = "The provider of the cluster")]
+    provider: String,
+
+    #[structopt(long, help = "The region of the cluster")]
+    region: String,
+
+    #[structopt(long, help = "The deployment tier of the cluster")]
+    deployment_tier: String,
+
+    #[structopt(long, help = "Whether mutual TLS is enabled for the cluster")]
+    mutual_tls_enabled: bool,
+
+    #[structopt(
+        long,
+        parse(try_from_str = parse_projection_level),
+        help = "The projection level of your database. Can be off, system or user "
+    )]
+    projection_level: esc_api::mesdb::ProjectionLevel,
+
+    #[structopt(long, help = "The server version of the cluster")]
+    server_version: String,
+
+    #[structopt(long, parse(try_from_str = parse_topology), help = "Either single-node or three-node-multi-zone")]
+    topology: esc_api::mesdb::Topology,
+}
+
+#[derive(Debug, StructOpt)]
+#[structopt(about = "List all shared clusters of an organization, given a project id")]
+struct ListSharedClusters {
+    #[structopt(long, parse(try_from_str = parse_org_id), default_value = "", help = "The organization id the cluster relates to")]
+    org_id: OrgId,
+
+    #[structopt(long, parse(try_from_str = parse_project_id), default_value = "", help = "The project id the cluster relates to")]
+    project_id: esc_api::resources::ProjectId,
+}
+
+#[derive(Debug, StructOpt)]
+#[structopt(about = "Delete a shared cluster")]
+struct DeleteSharedCluster {
+    #[structopt(long, parse(try_from_str = parse_org_id), default_value = "", help = "The organization id the cluster relates to")]
+    org_id: OrgId,
+
+    #[structopt(long, parse(try_from_str = parse_project_id), default_value = "", help = "The project id the cluster relates to")]
+    project_id: esc_api::resources::ProjectId,
+
+    #[structopt(long, short, parse(try_from_str = parse_cluster_id), help = "Id of the cluster you want to delete")]
+    id: esc_api::ClusterId,
+}
+
+#[derive(Debug, StructOpt)]
+#[structopt(about = "Get a shared cluster")]
+struct GetSharedCluster {
+    #[structopt(long, parse(try_from_str = parse_org_id), default_value = "", help = "The organization id the cluster relates to")]
+    org_id: OrgId,
+
+    #[structopt(long, parse(try_from_str = parse_project_id), default_value = "", help = "The project id the cluster relates to")]
+    project_id: esc_api::resources::ProjectId,
+
+    #[structopt(long, short, parse(try_from_str = parse_cluster_id), help = "Id of the cluster you want to get")]
+    id: esc_api::ClusterId,
 }
 
 #[derive(Debug, StructOpt)]
@@ -2717,6 +2816,72 @@ async fn call_api<'a, 'b>(
 
         Command::Mesdb(mesdb) => {
             match mesdb.mesdb_command {
+                MesdbCommand::SharedClusters(shared_clusters) => {
+                    match shared_clusters.shared_clusters_command {
+                        SharedClustersCommand::Create(params) => {
+                            let client = client_builder.create().await?;
+                            let resp = esc_api::mesdb::create_shared_cluster(
+                                &client,
+                                params.org_id,
+                                params.project_id,
+                                esc_api::mesdb::CreateSharedClusterDeploymentRequest {
+                                    cluster: esc_api::mesdb::CreateSharedClusterRequest {
+                                        name: params.name,
+                                        provider: params.provider,
+                                        region: params.region,
+                                        deployment_tier: params.deployment_tier,
+                                        mutual_tls_enabled: params.mutual_tls_enabled,
+                                        projection_level: params.projection_level,
+                                        server_version: params.server_version,
+                                        topology: params.topology,
+                                    },
+                                    acl: esc_api::mesdb::Acl::ResourceIdentifier(
+                                        esc_api::mesdb::ResourceIdentifier {
+                                            id: params.acl_id.0,
+                                        },
+                                    ),
+                                },
+                            )
+                            .await?;
+                            printer.print(resp)?;
+                        }
+
+                        SharedClustersCommand::List(params) => {
+                            let client = client_builder.create().await?;
+                            let resp = esc_api::mesdb::list_shared_clusters(
+                                &client,
+                                params.org_id,
+                                params.project_id,
+                            )
+                            .await?;
+                            printer.print(resp)?;
+                        }
+
+                        SharedClustersCommand::Delete(params) => {
+                            let client = client_builder.create().await?;
+                            esc_api::mesdb::delete_shared_cluster(
+                                &client,
+                                params.org_id,
+                                params.project_id,
+                                params.id,
+                            )
+                            .await?;
+                        }
+
+                        SharedClustersCommand::Get(params) => {
+                            let client = client_builder.create().await?;
+                            let resp = esc_api::mesdb::get_shared_cluster(
+                                &client,
+                                params.org_id,
+                                params.project_id,
+                                params.id,
+                            )
+                            .await?;
+                            printer.print(resp)?;
+                        }
+                    }
+                }
+
                 MesdbCommand::Clusters(clusters) => match clusters.clusters_command {
                     ClustersCommand::Create(params) => {
                         let client = client_builder.create().await?;
@@ -2741,6 +2906,8 @@ async fn call_api<'a, 'b>(
                                 topology: params.topology,
                                 protected: params.protected,
                                 public_access: params.public_access,
+                                provider: params.provider,
+                                region: params.region,
                             },
                         )
                         .await?;

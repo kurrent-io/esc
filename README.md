@@ -70,6 +70,7 @@ esc profiles set --profile my_profile --name fmt --value api
 ```
 
 ## JSON commands output rendering
+
 You can render any read command output in JSON by using the `--json` flag.
 
 ```
@@ -80,9 +81,9 @@ esc resources organizations list --json
 
 You can generate shell completion script by using the `generate-{shell}-completion` command. Currently supported:
 
-* Bash
-* Zsh
-* Powershell
+- Bash
+- Zsh
+- Powershell
 
 Additional shells can be supported, please open a feature request.
 
@@ -139,13 +140,17 @@ esc mesdb clusters create --help
 esc mesdb clusters stop --org-id <org-id> --project-id <project-id> --id <cluster-id>
 ```
 
-
 ### Start a cluster
 
 ```
 esc mesdb clusters start --org-id <org-id> --project-id <project-id> --id <cluster-id>
 ```
 
+### Create a shared cluster
+
+```
+esc mesdb shared-clusters create --deployment-tier s0 --name <name> --projection-level <projection-level> --provider <provider> --region <region> --server-version <server-version> --topology <topology> --acl-id <acl-id>
+```
 
 ### Create a refresh token.
 
@@ -166,7 +171,6 @@ esc access tokens display
 ```
 escp resources organizations update-mfa-status --enabled=true
 ```
-
 
 ### List members of an organization.
 
