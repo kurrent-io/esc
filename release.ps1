@@ -69,7 +69,7 @@ switch($Runner)
     Pop-Location
   }
 
-  macos-11
+  macos-13
   {
     cargo build --bin esc --release
 
