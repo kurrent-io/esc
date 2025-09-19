@@ -1,7 +1,7 @@
 [CmdletBinding()]
 Param(
   [Parameter(Mandatory=$true)]
-  [ValidateSet("windows-2022", "ubuntu-22.04", "macos-13", "macos-14")]
+  [ValidateSet("windows-2022", "ubuntu-22.04", "ubuntu-24.04", "macos-13", "macos-14")]
   [string]$Runner,
 
   [Parameter(Mandatory=$true)]
@@ -48,10 +48,29 @@ New-Item -Path . -Name "output" -ItemType "directory" -Force
 
 switch($Runner)
 {
-  ubuntu-22.04
+  { $_ -in @("ubuntu-22.04", "ubuntu-24.04") }
   {
     cargo install cargo-deb
-    cargo deb --manifest-path=cli/Cargo.toml --output=output
+
+    if ($Arch -eq "arm64") {
+      # Cross-compilation setup for ARM64
+      rustup target add aarch64-unknown-linux-gnu
+
+      # Install cross-compilation toolchain dependencies
+      sudo apt-get update
+      sudo apt-get install -y gcc-aarch64-linux-gnu pkg-config
+
+      # Set environment variables required for cross-linking
+      $env:CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER = "aarch64-linux-gnu-gcc"
+      $env:PKG_CONFIG_ALLOW_CROSS = "1"
+
+      # Cross-compile for ARM64
+      cargo deb --manifest-path=cli/Cargo.toml --target=aarch64-unknown-linux-gnu --output=output
+    } else {
+      # Native compilation for AMD64
+      cargo deb --manifest-path=cli/Cargo.toml --output=output
+    }
+
     $artifactName = ls output
     $finalName = "EventStoreDB.Cloud.CLI-$Version-1.${Runner}_${Arch}.deb"
     Push-Location "output"
