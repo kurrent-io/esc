@@ -1851,17 +1851,6 @@ fn parse_cidr(src: &str) -> Result<cidr::Ipv4Cidr, cidr::NetworkParseError> {
     src.parse::<cidr::Ipv4Cidr>()
 }
 
-#[derive(Debug)]
-struct StringError(String);
-
-impl std::fmt::Display for StringError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> core::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl std::error::Error for StringError {}
-
 struct Printer {
     pub render_in_json: bool,
     pub render_as_v1: bool,
