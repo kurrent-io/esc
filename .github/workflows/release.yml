@@ -10,7 +10,15 @@ jobs:
     name: Release
     strategy:
       matrix:
-        os: [ubuntu-22.04, windows-2019, macos-13]
+        include:
+          - os: ubuntu-22.04
+            arch: amd64
+          - os: windows-2019
+            arch: x64
+          - os: macos-13
+            arch: x64
+          - os: macos-14
+            arch: arm64
 
     runs-on: ${{ matrix.os }}
 
@@ -38,7 +46,7 @@ jobs:
 
       - name: Packaging
         id: package
-        run: .\release.ps1 -Runner "${{ matrix.os }}" -Version "${{ steps.release.outputs.version}}"
+        run: .\release.ps1 -Runner "${{ matrix.os }}" -Arch "${{ matrix.arch }}" -Version "${{ steps.release.outputs.version}}"
         shell: pwsh
 
       - name: Upload Release Asset

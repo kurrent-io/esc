@@ -1,8 +1,12 @@
 [CmdletBinding()]
 Param(
   [Parameter(Mandatory=$true)]
-  [ValidateSet("windows-2019", "ubuntu-22.04", "macos-13")]
+  [ValidateSet("windows-2019", "ubuntu-22.04", "macos-13", "macos-14")]
   [string]$Runner,
+
+  [Parameter(Mandatory=$true)]
+  [ValidateSet("amd64", "x64", "arm64")]
+  [string]$Arch,
 
   [Parameter(Mandatory=$true)]
   [string]$Version
@@ -49,7 +53,7 @@ switch($Runner)
     cargo install cargo-deb
     cargo deb --manifest-path=cli/Cargo.toml --output=output
     $artifactName = ls output
-    $finalName = "EventStoreDB.Cloud.CLI-$Version-1.${Runner}_amd64.deb"
+    $finalName = "EventStoreDB.Cloud.CLI-$Version-1.${Runner}_${Arch}.deb"
     Push-Location "output"
     Move-Item -Path $artifactName $finalName
     Write-Output "artifact_name" $finalName
@@ -62,18 +66,19 @@ switch($Runner)
     cargo build --bin esc --release
     Move-Item -Path (Join-Path "target" (Join-Path "release" "esc.exe")) (Join-Path "output" "esc.exe")
     Push-Location output
-    $artifactName = "EventStoreDB.Cloud.CLI-Windows-x64-$Version.zip"
+    $artifactName = "EventStoreDB.Cloud.CLI-Windows-$Arch-$Version.zip"
     Write-Output "artifact_name" $artifactName
     Write-Output "content_type" "application/zip"
     Compress-Archive -Path "esc.exe" -DestinationPath $artifactName
     Pop-Location
   }
 
-  macos-13
+  { $_ -in @("macos-13", "macos-14") }
   {
     cargo build --bin esc --release
 
-    $packageName = "EventStoreDB.Cloud.CLI-OSX-$Version.pkg"
+    $archSuffix = if ($Arch -eq "arm64") { "-arm64" } else { "" }
+    $packageName = "EventStoreDB.Cloud.CLI-OSX$archSuffix-$Version.pkg"
     $semVer = Get-Sem-Version $Version
 
     New-Item -Path . -Name "macbuild" -ItemType "directory"
