@@ -24,7 +24,7 @@ jobs:
           - os: macos-14
             arch: arm64
 
-    runs-on: ${{ matrix.arch == 'arm64' && matrix.os == 'ubuntu-24.04' && 'ubuntu-24.04-arm64' || matrix.os }}
+    runs-on: ${{ (matrix.arch == 'arm64' && matrix.os == 'macos-14') && 'macos-14' || matrix.os }}
 
     steps:
       - uses: actions/checkout@v2
