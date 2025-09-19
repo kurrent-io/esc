@@ -59,8 +59,9 @@ switch($Runner)
       # Install cross-compilation toolchain and ARM64 OpenSSL
       sudo apt-get update
       sudo dpkg --add-architecture arm64
-      sudo apt-get install -y gcc-aarch64-linux-gnu pkg-config-aarch64-linux-gnu
-      sudo apt-get install -y libssl-dev:arm64 pkg-config
+      sudo apt-get update
+      sudo apt-get install -y gcc-aarch64-linux-gnu pkg-config
+      sudo apt-get install -y libssl-dev:arm64
 
       # Set environment variables for linker and OpenSSL
       $env:CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER = "aarch64-linux-gnu-gcc"
