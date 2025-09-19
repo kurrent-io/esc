@@ -25,10 +25,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Install current stable Rust compiler
+      - name: Install Rust toolchain
         run: |
           rustup update
-          rustup default stable
+          rustup show
 
       - name: Create version
         id: version

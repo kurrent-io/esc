@@ -15,10 +15,10 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v1
-      - name: Install current stable Rust compiler
+      - name: Install Rust toolchain
         run: |
           rustup update
-          rustup default stable
+          rustup show
       - name: install Just
         uses: extractions/setup-just@v1
         with:
