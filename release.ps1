@@ -48,7 +48,7 @@ New-Item -Path . -Name "output" -ItemType "directory" -Force
 
 switch($Runner)
 {
-  ubuntu-22.04
+  { $_ -in @("ubuntu-22.04", "ubuntu-24.04") }
   {
     cargo install cargo-deb
     cargo deb --manifest-path=cli/Cargo.toml --output=output
