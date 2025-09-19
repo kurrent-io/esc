@@ -1,7 +1,7 @@
 [CmdletBinding()]
 Param(
   [Parameter(Mandatory=$true)]
-  [ValidateSet("windows-2019", "ubuntu-22.04", "macos-13", "macos-14")]
+  [ValidateSet("windows-2022", "ubuntu-22.04", "macos-13", "macos-14")]
   [string]$Runner,
 
   [Parameter(Mandatory=$true)]
@@ -61,7 +61,7 @@ switch($Runner)
     Pop-Location
   }
 
-  windows-2019
+  windows-2022
   {
     cargo build --bin esc --release
     Move-Item -Path (Join-Path "target" (Join-Path "release" "esc.exe")) (Join-Path "output" "esc.exe")
