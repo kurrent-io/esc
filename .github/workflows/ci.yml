@@ -8,9 +8,19 @@ jobs:
     name: Build
     strategy:
       matrix:
-        os: [ubuntu-22.04, windows-2022, macos-13, macos-14]
+        include:
+          - os: ubuntu-22.04
+            arch: amd64
+          - os: ubuntu-22.04
+            arch: arm64
+          - os: windows-2022
+            arch: x64
+          - os: macos-13
+            arch: x64
+          - os: macos-14
+            arch: arm64
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.arch == 'arm64' && matrix.os == 'ubuntu-22.04' && 'ubuntu-22.04-arm64' || matrix.os }}
 
     steps:
       - name: checkout
