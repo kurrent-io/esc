@@ -11,6 +11,8 @@ jobs:
         include:
           - os: ubuntu-22.04
             arch: amd64
+          - os: ubuntu-22.04
+            arch: arm64
           - os: ubuntu-24.04
             arch: amd64
           - os: ubuntu-24.04
@@ -36,7 +38,7 @@ jobs:
         with:
           just-version: 1.14.0
       - name: Setup cross-compilation for ARM64 Linux
-        if: matrix.os == 'ubuntu-24.04' && matrix.arch == 'arm64'
+        if: startsWith(matrix.os, 'ubuntu-') && matrix.arch == 'arm64'
         run: |
           rustup target add aarch64-unknown-linux-gnu
           sudo apt-get update
@@ -45,7 +47,7 @@ jobs:
           echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
 
       - name: Build and Test (ARM64 Linux Cross-Compilation)
-        if: matrix.os == 'ubuntu-24.04' && matrix.arch == 'arm64'
+        if: startsWith(matrix.os, 'ubuntu-') && matrix.arch == 'arm64'
         run: |
           just fmt
           git diff --exit-code
@@ -54,5 +56,5 @@ jobs:
           just test
 
       - name: Build and Test (Standard)
-        if: matrix.os != 'ubuntu-24.04' || matrix.arch != 'arm64'
+        if: !(startsWith(matrix.os, 'ubuntu-') && matrix.arch == 'arm64')
         run: just ci

@@ -13,6 +13,8 @@ jobs:
         include:
           - os: ubuntu-22.04
             arch: amd64
+          - os: ubuntu-22.04
+            arch: arm64
           - os: ubuntu-24.04
             arch: amd64
           - os: ubuntu-24.04
