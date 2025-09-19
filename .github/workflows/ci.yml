@@ -38,7 +38,7 @@ jobs:
         with:
           just-version: 1.14.0
       - name: Setup cross-compilation for ARM64 Linux
-        if: startsWith(matrix.os, 'ubuntu-') && matrix.arch == 'arm64'
+        if: ${{ startsWith(matrix.os, 'ubuntu-') && matrix.arch == 'arm64' }}
         run: |
           rustup target add aarch64-unknown-linux-gnu
           sudo apt-get update
@@ -47,7 +47,7 @@ jobs:
           echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
 
       - name: Build and Test (ARM64 Linux Cross-Compilation)
-        if: startsWith(matrix.os, 'ubuntu-') && matrix.arch == 'arm64'
+        if: ${{ startsWith(matrix.os, 'ubuntu-') && matrix.arch == 'arm64' }}
         run: |
           just fmt
           git diff --exit-code
@@ -56,5 +56,5 @@ jobs:
           just test
 
       - name: Build and Test (Standard)
-        if: !(startsWith(matrix.os, 'ubuntu-') && matrix.arch == 'arm64')
+        if: ${{ !(startsWith(matrix.os, 'ubuntu-') && matrix.arch == 'arm64') }}
         run: just ci
