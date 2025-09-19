@@ -56,12 +56,17 @@ switch($Runner)
       # Cross-compilation setup for ARM64
       rustup target add aarch64-unknown-linux-gnu
 
-      # Install cross-compilation toolchain
+      # Install cross-compilation toolchain and ARM64 OpenSSL
       sudo apt-get update
-      sudo apt-get install -y gcc-aarch64-linux-gnu
+      sudo dpkg --add-architecture arm64
+      sudo apt-get install -y gcc-aarch64-linux-gnu pkg-config-aarch64-linux-gnu
+      sudo apt-get install -y libssl-dev:arm64 pkg-config
 
-      # Set environment variable for linker
+      # Set environment variables for linker and OpenSSL
       $env:CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER = "aarch64-linux-gnu-gcc"
+      $env:PKG_CONFIG_ALLOW_CROSS = "1"
+      $env:PKG_CONFIG_PATH = "/usr/lib/aarch64-linux-gnu/pkgconfig"
+      $env:OPENSSL_DIR = "/usr"
 
       # Cross-compile for ARM64
       cargo deb --manifest-path=cli/Cargo.toml --target=aarch64-unknown-linux-gnu --output=output
