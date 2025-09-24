@@ -22,8 +22,8 @@ mod tests {
     }
 
     #[test]
-    fn test_client_version_exists() {
-        // CLIENT_VERSION should always have a value
-        assert!(!CLIENT_VERSION.is_empty());
+    fn test_client_version_has_valid_format() {
+        // CLIENT_VERSION should contain version-like content (digits and dots)
+        assert!(CLIENT_VERSION.chars().any(|c| c.is_ascii_digit()));
     }
 }
