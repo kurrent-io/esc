@@ -13,11 +13,11 @@ clean:
 
 # builds esc
 build:
-    cargo build --locked
+    ESC_CLIENT_VERSION={{`cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "esc") | .version'` }} cargo build --locked
 
 # builds in release mode
 build-release:
-    cargo build --locked --release
+    ESC_CLIENT_VERSION={{`cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "esc") | .version'` }} cargo build --locked --release
 
 # Formats the code base
 fmt:

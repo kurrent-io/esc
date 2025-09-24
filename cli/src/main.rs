@@ -14,6 +14,7 @@ mod v1;
 
 use cidr::Cidr;
 use esc_api::resources::MfaStatus;
+use esc_client_base::build_http_client;
 
 use esc_api::{GroupId, MemberId, OrgId};
 use output::OutputFormat;
@@ -1902,7 +1903,7 @@ async fn get_token(
     refresh_token: Option<String>,
     noninteractive: bool,
 ) -> Result<esc_api::Token, Box<dyn std::error::Error>> {
-    let client = reqwest::Client::new();
+    let client = build_http_client();
     match refresh_token {
         Some(refresh_token) => {
             let otp_prompt: Option<esc_client_base::identity::operations::OtpPrompt> =
@@ -1966,7 +1967,7 @@ impl ClientBuilder {
             authorization_header: token.authorization_header(),
         };
         let sender = esc_api::RequestSender {
-            client: reqwest::Client::new(),
+            client: build_http_client(),
             observer: self.observer,
         };
         let client = esc_api::Client {
@@ -2166,7 +2167,7 @@ async fn call_api<'a, 'b>(
 
             AccessCommand::Tokens(tokens) => match tokens.tokens_command {
                 TokensCommand::Create(params) => {
-                    let client = reqwest::Client::new();
+                    let client = build_http_client();
                     let mut store = esc_client_store::token_store(token_config).await?;
 
                     match client_builder.noninteractive {

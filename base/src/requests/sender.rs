@@ -44,7 +44,8 @@ impl Sender {
             .request(method.clone(), url.as_str())
             .header("Authorization", authorization_header)
             .header("Content-Type", "application/json")
-            .header("Accept", "application/json");
+            .header("Accept", "application/json")
+            .header("User-Agent", &crate::version::user_agent());
         let req = match body {
             Some(b) => req.json(b),
             None => req,
