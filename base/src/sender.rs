@@ -51,7 +51,8 @@ impl RequestSender {
                 format!("{} {}", token.token_type, token.access_token),
             )
             .header("Content-Type", "application/json")
-            .header("Accept", "application/json");
+            .header("Accept", "application/json")
+            .header("User-Agent", &crate::version::user_agent());
         let req = match body {
             Some(b) => req.json(b),
             None => req,
