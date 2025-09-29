@@ -70,7 +70,6 @@ impl From<ApiResponseError> for EscError {
 }
 
 impl PartialEq for EscError {
-    #[must_use]
     fn eq(&self, other: &EscError) -> bool {
         match self {
             EscError::ApiResponse(err) => match other {
