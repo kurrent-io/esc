@@ -1988,11 +1988,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .get_current_profile()
         .and_then(|profile| {
             profile.api_base_url.as_ref().map(|url| {
-                format!(
+                let mut parsed_url = format!(
                     "{}://{}",
                     url.scheme(),
                     url.host_str().expect("Pre-validated it has a host")
-                )
+                );
+                if let Some(port) = url.port() {
+                    parsed_url.push_str(&format!(":{}", port));
+                }
+                parsed_url
             })
         })
         .unwrap_or_else(|| constants::ES_CLOUD_API_URL.to_string());
