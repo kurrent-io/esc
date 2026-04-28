@@ -1156,6 +1156,13 @@ struct UpdateCluster {
 
     #[structopt(long, help = "The protected flag prevents from accidental deletion")]
     protected: Option<bool>,
+
+    #[structopt(
+        long,
+        parse(try_from_str = parse_projection_level),
+        help = "The projection level of your database. Can be off, system or user"
+    )]
+    projection_level: Option<esc_api::mesdb::ProjectionLevel>,
 }
 
 #[derive(Debug, StructOpt)]
@@ -2942,6 +2949,7 @@ async fn call_api<'a, 'b>(
                                 acl_id: params.acl_id,
                                 description: params.description,
                                 protected: params.protected,
+                                projection_level: params.projection_level,
                             },
                         )
                         .await?;

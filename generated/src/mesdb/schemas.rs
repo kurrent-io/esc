@@ -583,6 +583,8 @@ pub struct UpdateClusterRequest {
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub protected: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub projection_level: Option<ProjectionLevel>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
