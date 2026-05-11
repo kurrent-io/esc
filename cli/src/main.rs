@@ -8,6 +8,7 @@ extern crate serde_derive;
 
 mod config;
 mod constants;
+mod login;
 mod output;
 mod utils;
 mod v1;
@@ -69,6 +70,7 @@ pub struct Opt {
 #[derive(StructOpt, Debug)]
 enum Command {
     Access(Access),
+    Login(Login),
     Audit(Audit),
     Resources(Resources),
     Infra(Infra),
@@ -82,6 +84,23 @@ enum Command {
     GenerateZshCompletion,
     #[structopt(about = "Prints Powershell completion script in STDOUT")]
     GeneratePowershellCompletion,
+}
+
+#[derive(StructOpt, Debug)]
+#[structopt(about = "Authenticate via browser-based PKCE OAuth flow")]
+struct Login {
+    #[structopt(long, help = "Override the OAuth issuer URL")]
+    issuer_url: Option<String>,
+
+    #[structopt(long, help = "Override the OAuth client ID")]
+    client_id: Option<String>,
+
+    #[structopt(
+        long,
+        default_value = "120",
+        help = "Seconds to wait for the browser callback before timing out"
+    )]
+    timeout_secs: u64,
 }
 
 #[derive(StructOpt, Debug)]
@@ -3275,6 +3294,23 @@ async fn call_api<'a, 'b>(
                 .await?;
             }
         },
+
+        Command::Login(params) => {
+            let mut effective = token_config.clone();
+            if let Some(url) = params.issuer_url {
+                effective.identity_url = url;
+            }
+            if let Some(cid) = params.client_id {
+                effective.client_id = cid;
+            }
+            let opts = login::LoginOptions {
+                timeout: std::time::Duration::from_secs(params.timeout_secs),
+            };
+            let token = login::run_login(&effective, opts).await?;
+            let mut store = esc_client_store::token_store(effective).await?;
+            store.save_token(token).await?;
+            println!("Login successful. Token stored.");
+        }
 
         Command::GenerateBashCompletion => {
             // clap_complete::generate_to(clap_complete::shells::Bashg, clap_app, "esc", out_dir)

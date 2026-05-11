@@ -194,6 +194,10 @@ impl TokenStore {
     pub async fn show(&self) -> Result<Option<Token>> {
         self.token_file.load().await
     }
+
+    pub async fn save_token(&mut self, token: Token) -> Result<Token> {
+        self.token_file.save(token).await
+    }
 }
 
 fn read_email_from_user() -> std::result::Result<String, Box<dyn std::error::Error>> {

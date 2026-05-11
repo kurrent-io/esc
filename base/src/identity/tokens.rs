@@ -2,9 +2,16 @@
 pub struct Token {
     pub(crate) access_token: String,
     pub(crate) refresh_token: Option<String>,
+    #[serde(default)]
     pub(crate) scope: String,
+    #[serde(default)]
     pub(crate) expires_in: i64,
+    #[serde(default = "default_token_type")]
     pub(crate) token_type: String,
+}
+
+fn default_token_type() -> String {
+    "Bearer".to_string()
 }
 
 impl Token {

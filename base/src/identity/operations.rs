@@ -189,6 +189,38 @@ pub async fn create_with_otp(
     parse_result(resp).await
 }
 
+#[derive(Serialize)]
+struct AuthenticateRequest<'a> {
+    grant_type: &'a str,
+    client_id: &'a str,
+    code: &'a str,
+    code_verifier: &'a str,
+    redirect_uri: &'a str,
+}
+
+pub async fn exchange_code(
+    client: &reqwest::Client,
+    config: &TokenConfig,
+    code: &str,
+    code_verifier: &str,
+    redirect_uri: &str,
+) -> Result<Token> {
+    let body = AuthenticateRequest {
+        grant_type: "authorization_code",
+        client_id: config.client_id.as_ref(),
+        code,
+        code_verifier,
+        redirect_uri,
+    };
+
+    let url = format!("{}/user_management/authenticate", &config.identity_url);
+    let req = client.post(url.as_str()).json(&body);
+
+    let resp = req.send().await?;
+
+    parse_result(resp).await
+}
+
 pub async fn refresh(
     client: &reqwest::Client,
     config: &TokenConfig,
