@@ -1077,7 +1077,7 @@ struct CreateCluster {
 
     #[structopt(
         long,
-        help = "Type of disk. For example, if you are using AWS as a provider, it could be GP2"
+        help = "Type of disk. For example, if you are using AWS as a provider, it could be GP3"
     )]
     disk_type: String,
 
