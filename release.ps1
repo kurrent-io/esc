@@ -50,7 +50,9 @@ switch($Runner)
 {
   { $_ -in @("ubuntu-22.04", "ubuntu-24.04") }
   {
-    cargo install cargo-deb
+    # Pin cargo-deb to a version compatible with the pinned rustc (see rust-toolchain.toml).
+    # cargo-deb 3.7.0+ requires rustc 1.85+, while we currently build with 1.80.0.
+    cargo install cargo-deb --version 3.6.2 --locked
 
     if ($Arch -eq "arm64") {
       # Cross-compilation setup for ARM64
