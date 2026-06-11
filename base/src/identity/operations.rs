@@ -247,6 +247,38 @@ pub async fn client_credentials(
     parse_result(resp).await
 }
 
+#[derive(Serialize)]
+struct WorkOsRefreshRequest<'a> {
+    grant_type: &'a str,
+    client_id: &'a str,
+    refresh_token: &'a str,
+}
+
+// refresh_workos performs the WorkOS User Management refresh-token grant for
+// tokens minted by the interactive PKCE login flow. It posts to the same
+// endpoint as exchange_code ({idp_um_url}/user_management/authenticate) using
+// the WorkOS client id (idp_client_id). WorkOS rotates refresh tokens, so the
+// returned Token carries a new refresh_token that callers must persist in place
+// of the old one.
+pub async fn refresh_workos(
+    client: &reqwest::Client,
+    config: &TokenConfig,
+    refresh_token: &str,
+) -> Result<Token> {
+    let body = WorkOsRefreshRequest {
+        grant_type: "refresh_token",
+        client_id: config.idp_client_id.as_ref(),
+        refresh_token,
+    };
+
+    let url = format!("{}/user_management/authenticate", &config.idp_um_url);
+    let req = client.post(url.as_str()).json(&body);
+
+    let resp = req.send().await?;
+
+    parse_result(resp).await
+}
+
 pub async fn refresh(
     client: &reqwest::Client,
     config: &TokenConfig,

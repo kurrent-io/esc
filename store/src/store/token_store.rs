@@ -3,12 +3,14 @@ use super::standard_claims::StandardClaims;
 use super::token_file::TokenFile;
 use super::token_validator::TokenValidator;
 use crate::errors::{Result, StoreError};
+use crate::typical::TokenKind;
 use esc_client_base::identity::operations;
 use esc_client_base::identity::TokenConfig;
 use esc_client_base::Token;
 use std::path::Path;
 
 pub struct TokenStore {
+    kind: TokenKind,
     token_config: TokenConfig,
     token_file: TokenFile,
     validator: TokenValidator,
@@ -17,6 +19,7 @@ pub struct TokenStore {
 impl TokenStore {
     pub fn new(
         directory: &Path,
+        kind: TokenKind,
         token_config: TokenConfig,
         validator: TokenValidator,
     ) -> Result<Self> {
@@ -29,6 +32,7 @@ impl TokenStore {
         let token_file = TokenFile::new(token_path);
 
         Ok(TokenStore {
+            kind,
             token_config,
             token_file,
             validator,
@@ -158,13 +162,20 @@ impl TokenStore {
                 ))
             }
         };
-        let result = operations::refresh(
-            client,
-            &self.token_config,
-            refresh_token,
-            Some(prompt_for_otp),
-        )
-        .await;
+        // PKCE tokens are minted by WorkOS and must be refreshed against WorkOS;
+        // legacy tokens use the Auth0 refresh-token grant. WorkOS rotates refresh
+        // tokens, so the PKCE path persists the whole returned token (including
+        // the new refresh_token), whereas the legacy path only swaps the access
+        // token onto the existing record.
+        let result = match self.kind {
+            TokenKind::Pkce => {
+                operations::refresh_workos(client, &self.token_config, refresh_token).await
+            }
+            TokenKind::Legacy => {
+                operations::refresh(client, &self.token_config, refresh_token, Some(prompt_for_otp))
+                    .await
+            }
+        };
         let refreshed_token = match result {
             Ok(token) => Ok(token),
             Err(err) => {
@@ -175,7 +186,10 @@ impl TokenStore {
                 )
             }
         }?;
-        let token = token.update_access_token(refreshed_token.access_token());
+        let token = match self.kind {
+            TokenKind::Pkce => refreshed_token,
+            TokenKind::Legacy => token.update_access_token(refreshed_token.access_token()),
+        };
         self.token_file.save(token).await
     }
 

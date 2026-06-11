@@ -6,6 +6,7 @@ use esc_client_base::identity::TokenConfig;
 use std::path::{Path, PathBuf};
 
 // TokenKind selects which on-disk token namespace a store reads and writes.
+#[derive(Clone, Copy)]
 pub enum TokenKind {
     // Pkce tokens come from the browser-based `esc login` flow.
     Pkce,
@@ -52,7 +53,7 @@ pub async fn token_store_kind(kind: TokenKind, token_config: TokenConfig) -> Res
     let esc_dir = get_esc_dir()?;
     let token_dir = token_dir_for(&esc_dir, kind);
     let validator = TokenValidator::new_from_rsa_pem(&token_config.public_key)?;
-    let ts = TokenStore::new(&token_dir, token_config, validator).map_err(|err| {
+    let ts = TokenStore::new(&token_dir, kind, token_config, validator).map_err(|err| {
         StoreError::new("error creating token store").source(Box::new(err))
     })?;
     Ok(ts)
