@@ -63,34 +63,33 @@ impl TokenStore {
         &mut self,
         client: &reqwest::Client,
     ) -> Result<Option<Token>> {
-        let previous_token = self.token_file.load().await?;
-        match previous_token {
-            None => Ok(None),
-            Some(previous_token) => match self.validator.parse_token_claims(&previous_token) {
-                Ok(claims) => {
-                    if validate_claims(&claims) {
-                        Ok(Some(previous_token))
-                    } else {
-                        self.refresh_active_token_provided_token(client, previous_token)
-                            .await
-                            .map(Some)
-                    }
-                }
-                Err(e) => match e.kind() {
-                    jsonwebtoken::errors::ErrorKind::ExpiredSignature => {
-                        error!("Invalid token: {}", e);
-                        info!("Refreshing token...");
-                        self.refresh_active_token_provided_token(client, previous_token)
-                            .await
-                            .map(Some)
-                    }
-                    _ => Err(StoreError::new(
-                        "can't access token - error parsing current token's claims",
-                    )
-                    .source(Box::new(e))),
-                },
-            },
+        let previous_token = match self.token_file.load().await? {
+            Some(token) => token,
+            None => return Ok(None),
+        };
+
+        let needs_refresh = match self.validator.parse_token_claims(&previous_token) {
+            Ok(claims) => !validate_claims(&claims),
+            Err(e) if e.kind() == &jsonwebtoken::errors::ErrorKind::ExpiredSignature => {
+                error!("Invalid token: {}", e);
+                info!("Refreshing token...");
+                true
+            }
+            Err(e) => {
+                return Err(StoreError::new(
+                    "can't access token - error parsing current token's claims",
+                )
+                .source(Box::new(e)))
+            }
+        };
+
+        if !needs_refresh {
+            return Ok(Some(previous_token));
         }
+
+        self.refresh_active_token_provided_token(client, previous_token)
+            .await
+            .map(Some)
     }
 
     pub async fn create_token_from_prompt(&mut self, client: &reqwest::Client) -> Result<Token> {

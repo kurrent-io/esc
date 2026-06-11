@@ -189,15 +189,6 @@ pub async fn create_with_otp(
     parse_result(resp).await
 }
 
-#[derive(Serialize)]
-struct AuthenticateRequest<'a> {
-    grant_type: &'a str,
-    client_id: &'a str,
-    code: &'a str,
-    code_verifier: &'a str,
-    redirect_uri: &'a str,
-}
-
 pub async fn exchange_code(
     client: &reqwest::Client,
     config: &TokenConfig,
@@ -205,16 +196,16 @@ pub async fn exchange_code(
     code_verifier: &str,
     redirect_uri: &str,
 ) -> Result<Token> {
-    let body = AuthenticateRequest {
-        grant_type: "authorization_code",
-        client_id: config.idp_client_id.as_ref(),
-        code,
-        code_verifier,
-        redirect_uri,
-    };
+    let mut form = std::collections::HashMap::new();
+
+    form.insert("grant_type", "authorization_code");
+    form.insert("client_id", config.idp_client_id.as_ref());
+    form.insert("code", code);
+    form.insert("code_verifier", code_verifier);
+    form.insert("redirect_uri", redirect_uri);
 
     let url = format!("{}/user_management/authenticate", &config.idp_um_url);
-    let req = client.post(url.as_str()).json(&body);
+    let req = client.post(url.as_str()).form(&form);
 
     let resp = req.send().await?;
 
@@ -247,13 +238,6 @@ pub async fn client_credentials(
     parse_result(resp).await
 }
 
-#[derive(Serialize)]
-struct WorkOsRefreshRequest<'a> {
-    grant_type: &'a str,
-    client_id: &'a str,
-    refresh_token: &'a str,
-}
-
 // refresh_workos performs the WorkOS User Management refresh-token grant for
 // tokens minted by the interactive PKCE login flow. It posts to the same
 // endpoint as exchange_code ({idp_um_url}/user_management/authenticate) using
@@ -265,14 +249,14 @@ pub async fn refresh_workos(
     config: &TokenConfig,
     refresh_token: &str,
 ) -> Result<Token> {
-    let body = WorkOsRefreshRequest {
-        grant_type: "refresh_token",
-        client_id: config.idp_client_id.as_ref(),
-        refresh_token,
-    };
+    let mut form = std::collections::HashMap::new();
+
+    form.insert("grant_type", "refresh_token");
+    form.insert("client_id", config.idp_client_id.as_ref());
+    form.insert("refresh_token", refresh_token);
 
     let url = format!("{}/user_management/authenticate", &config.idp_um_url);
-    let req = client.post(url.as_str()).json(&body);
+    let req = client.post(url.as_str()).form(&form);
 
     let resp = req.send().await?;
 

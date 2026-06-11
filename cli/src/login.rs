@@ -69,11 +69,9 @@ fn build_authorize_url(
         ("code_challenge_method", "S256"),
     ];
 
-    let query = params
-        .iter()
-        .map(|(k, v)| format!("{}={}", k, url_encode(v)))
-        .collect::<Vec<_>>()
-        .join("&");
+    let query = url::form_urlencoded::Serializer::new(String::new())
+        .extend_pairs(params.iter().copied())
+        .finish();
 
     format!(
         "{}/user_management/authorize?{}",
@@ -133,13 +131,9 @@ fn parse_callback_query(
     let query = target.split_once('?').map(|(_, q)| q).unwrap_or("");
     let mut code = None;
     let mut state = None;
-    for pair in query.split('&') {
-        let (k, v) = match pair.split_once('=') {
-            Some(kv) => kv,
-            None => continue,
-        };
-        let decoded = url_decode(v);
-        match k {
+    for (k, v) in url::form_urlencoded::parse(query.as_bytes()) {
+        let decoded = v.into_owned();
+        match k.as_ref() {
             "code" => code = Some(decoded),
             "state" => state = Some(decoded),
             "error" => {
@@ -154,69 +148,9 @@ fn parse_callback_query(
     ))
 }
 
-fn url_encode(value: &str) -> String {
-    let mut out = String::with_capacity(value.len());
-    for byte in value.as_bytes() {
-        let b = *byte;
-        let unreserved = b.is_ascii_alphanumeric()
-            || b == b'-'
-            || b == b'_'
-            || b == b'.'
-            || b == b'~';
-        if unreserved {
-            out.push(b as char);
-        } else {
-            out.push_str(&format!("%{:02X}", b));
-        }
-    }
-    out
-}
-
-fn url_decode(value: &str) -> String {
-    let bytes = value.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        match bytes[i] {
-            b'+' => {
-                out.push(b' ');
-                i += 1;
-            }
-            b'%' if i + 2 < bytes.len() => {
-                let hi = hex_val(bytes[i + 1]);
-                let lo = hex_val(bytes[i + 2]);
-                match (hi, lo) {
-                    (Some(h), Some(l)) => {
-                        out.push((h << 4) | l);
-                        i += 3;
-                    }
-                    _ => {
-                        out.push(bytes[i]);
-                        i += 1;
-                    }
-                }
-            }
-            other => {
-                out.push(other);
-                i += 1;
-            }
-        }
-    }
-    String::from_utf8_lossy(&out).into_owned()
-}
-
-fn hex_val(b: u8) -> Option<u8> {
-    match b {
-        b'0'..=b'9' => Some(b - b'0'),
-        b'a'..=b'f' => Some(b - b'a' + 10),
-        b'A'..=b'F' => Some(b - b'A' + 10),
-        _ => None,
-    }
-}
-
 fn generate_verifier() -> String {
     let mut bytes = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut bytes);
+    rand::rngs::OsRng.fill_bytes(&mut bytes);
     base64_url_no_pad(&bytes)
 }
 
@@ -228,7 +162,7 @@ fn code_challenge_s256(verifier: &str) -> String {
 
 fn random_url_safe(num_bytes: usize) -> String {
     let mut bytes = vec![0u8; num_bytes];
-    rand::thread_rng().fill_bytes(&mut bytes);
+    rand::rngs::OsRng.fill_bytes(&mut bytes);
     base64_url_no_pad(&bytes)
 }
 

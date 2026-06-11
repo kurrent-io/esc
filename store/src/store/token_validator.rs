@@ -25,7 +25,8 @@ impl TokenValidator {
         let mut parts = access.split('.');
         let _header = parts.next().ok_or_else(invalid)?;
         let payload = parts.next().ok_or_else(invalid)?;
-        let decoded = base64_url_decode(payload).map_err(|_| invalid())?;
+        let decoded =
+            base64::decode_config(payload, base64::URL_SAFE_NO_PAD).map_err(|_| invalid())?;
         let claims: StandardClaims =
             serde_json::from_slice(&decoded).map_err(|_| invalid())?;
         Ok(claims)
@@ -36,14 +37,4 @@ impl Default for TokenValidator {
     fn default() -> Self {
         Self::new()
     }
-}
-
-fn base64_url_decode(input: &str) -> std::result::Result<Vec<u8>, base64::DecodeError> {
-    let padded_len = (input.len() + 3) & !3;
-    let mut padded = String::with_capacity(padded_len);
-    padded.push_str(input);
-    while padded.len() < padded_len {
-        padded.push('=');
-    }
-    base64::decode_config(padded.as_bytes(), base64::URL_SAFE)
 }
