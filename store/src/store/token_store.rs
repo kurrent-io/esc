@@ -59,10 +59,7 @@ impl TokenStore {
     // access_if_present returns the active token only if one is already stored,
     // refreshing it when expired. It never prompts; returns None when no token
     // file exists, so callers can fall back to another auth method.
-    pub async fn access_if_present(
-        &mut self,
-        client: &reqwest::Client,
-    ) -> Result<Option<Token>> {
+    pub async fn access_if_present(&mut self, client: &reqwest::Client) -> Result<Option<Token>> {
         let previous_token = match self.token_file.load().await? {
             Some(token) => token,
             None => return Ok(None),
@@ -171,8 +168,13 @@ impl TokenStore {
                 operations::refresh_workos(client, &self.token_config, refresh_token).await
             }
             TokenKind::Legacy => {
-                operations::refresh(client, &self.token_config, refresh_token, Some(prompt_for_otp))
-                    .await
+                operations::refresh(
+                    client,
+                    &self.token_config,
+                    refresh_token,
+                    Some(prompt_for_otp),
+                )
+                .await
             }
         };
         let refreshed_token = match result {

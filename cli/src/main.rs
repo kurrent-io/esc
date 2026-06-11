@@ -2123,7 +2123,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Service Account credentials are env-var only (never stored on disk).
-    let client_id = std::env::var("ESC_CLIENT_ID").ok().filter(|s| !s.is_empty());
+    let client_id = std::env::var("ESC_CLIENT_ID")
+        .ok()
+        .filter(|s| !s.is_empty());
     let client_secret = std::env::var("ESC_CLIENT_SECRET")
         .ok()
         .filter(|s| !s.is_empty());
@@ -3358,21 +3360,17 @@ async fn call_api<'a, 'b>(
                 timeout: std::time::Duration::from_secs(params.timeout_secs),
             };
             let token = login::run_login(&token_config, opts).await?;
-            let mut store = esc_client_store::token_store_kind(
-                esc_client_store::TokenKind::Pkce,
-                token_config,
-            )
-            .await?;
+            let mut store =
+                esc_client_store::token_store_kind(esc_client_store::TokenKind::Pkce, token_config)
+                    .await?;
             store.save_token(token).await?;
             println!("Login successful. Token stored.");
         }
 
         Command::Logout(_) => {
-            let store = esc_client_store::token_store_kind(
-                esc_client_store::TokenKind::Pkce,
-                token_config,
-            )
-            .await?;
+            let store =
+                esc_client_store::token_store_kind(esc_client_store::TokenKind::Pkce, token_config)
+                    .await?;
             if store.delete().await? {
                 println!("Logged out. Stored PKCE token removed.");
             } else {

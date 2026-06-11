@@ -27,8 +27,7 @@ impl TokenValidator {
         let payload = parts.next().ok_or_else(invalid)?;
         let decoded =
             base64::decode_config(payload, base64::URL_SAFE_NO_PAD).map_err(|_| invalid())?;
-        let claims: StandardClaims =
-            serde_json::from_slice(&decoded).map_err(|_| invalid())?;
+        let claims: StandardClaims = serde_json::from_slice(&decoded).map_err(|_| invalid())?;
         Ok(claims)
     }
 }

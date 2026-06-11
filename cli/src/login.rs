@@ -35,11 +35,10 @@ pub async fn run_login(
     println!("Open the following URL in your browser to log in:");
     println!("  {}", auth_url);
 
-    let join = tokio::task::spawn_blocking(move || wait_for_callback(listener, opts.timeout))
-        .await?;
-    let (code, returned_state) = join.map_err(|err| -> Box<dyn std::error::Error> {
-        format!("{}", err).into()
-    })?;
+    let join =
+        tokio::task::spawn_blocking(move || wait_for_callback(listener, opts.timeout)).await?;
+    let (code, returned_state) =
+        join.map_err(|err| -> Box<dyn std::error::Error> { format!("{}", err).into() })?;
 
     if returned_state != state {
         return Err("OAuth state mismatch".into());
@@ -73,10 +72,7 @@ fn build_authorize_url(
         .extend_pairs(params.iter().copied())
         .finish();
 
-    format!(
-        "{}/user_management/authorize?{}",
-        config.idp_um_url, query
-    )
+    format!("{}/user_management/authorize?{}", config.idp_um_url, query)
 }
 
 fn wait_for_callback(
@@ -97,8 +93,8 @@ fn wait_for_callback(
                 let mut buf = [0u8; 8192];
                 let n = stream.read(&mut buf)?;
                 let req = std::str::from_utf8(&buf[..n])?;
-                let target = parse_request_target(req)
-                    .ok_or("Could not parse callback request line")?;
+                let target =
+                    parse_request_target(req).ok_or("Could not parse callback request line")?;
                 let (code, state) = parse_callback_query(target)?;
 
                 let response = format!(
