@@ -52,7 +52,7 @@ pub async fn token_store(token_config: TokenConfig) -> Result<TokenStore> {
 pub async fn token_store_kind(kind: TokenKind, token_config: TokenConfig) -> Result<TokenStore> {
     let esc_dir = get_esc_dir()?;
     let token_dir = token_dir_for(&esc_dir, kind);
-    let validator = TokenValidator::new_from_rsa_pem(&token_config.public_key)?;
+    let validator = TokenValidator::new();
     let ts = TokenStore::new(&token_dir, kind, token_config, validator)
         .map_err(|err| StoreError::new("error creating token store").source(Box::new(err)))?;
     Ok(ts)

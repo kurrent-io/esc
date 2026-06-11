@@ -1,5 +1,4 @@
 use super::standard_claims::StandardClaims;
-use crate::errors::Result;
 use esc_client_base::Token;
 
 pub struct TokenValidator;
@@ -7,10 +6,6 @@ pub struct TokenValidator;
 impl TokenValidator {
     pub fn new() -> Self {
         Self
-    }
-
-    pub fn new_from_rsa_pem(_rsa_pem: &str) -> Result<Self> {
-        Ok(Self)
     }
 
     pub fn parse_token_claims(

@@ -2117,9 +2117,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(value) = &token_opts.idp_um_url {
             token_config.idp_um_url = value.clone();
         }
-        if let Some(value) = &token_opts.public_key {
-            token_config.public_key = value.clone();
-        }
     }
 
     // Service Account credentials are env-var only (never stored on disk).

@@ -22,13 +22,7 @@ pub struct TokenConfig {
     // {idp_um_url}/user_management/authenticate (code exchange). Override per
     // environment via the token-config profile.
     pub idp_um_url: String,
-    // public key the token should be signed with
-    pub public_key: String,
 }
-
-// The public key of the signing certificate. Find it with:
-//  openssl x509 -noout -pubkey -in signing.crt -out key.pem
-static JWT_PUBLIC_KEY: &str = include_str!("key.pem");
 
 impl Default for TokenConfig {
     fn default() -> Self {
@@ -39,7 +33,6 @@ impl Default for TokenConfig {
             identity_url: "https://identity.eventstore.com".to_owned(),
             idp_kit_url: "https://secure-book-07-staging.authkit.app".to_owned(),
             idp_um_url: "https://api.workos.com".to_owned(),
-            public_key: JWT_PUBLIC_KEY.to_owned(),
         }
     }
 }

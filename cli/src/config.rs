@@ -124,7 +124,6 @@ pub struct TokenConfigOpts {
     pub identity_url: Option<String>,
     pub idp_kit_url: Option<String>,
     pub idp_um_url: Option<String>,
-    pub public_key: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
