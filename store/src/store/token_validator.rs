@@ -9,7 +9,7 @@ impl TokenValidator {
         Self
     }
 
-    pub fn new_from_rsa_pem(_rsa_pem: &String) -> Result<Self> {
+    pub fn new_from_rsa_pem(_rsa_pem: &str) -> Result<Self> {
         Ok(Self)
     }
 
