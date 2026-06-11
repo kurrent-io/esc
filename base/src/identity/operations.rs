@@ -207,14 +207,40 @@ pub async fn exchange_code(
 ) -> Result<Token> {
     let body = AuthenticateRequest {
         grant_type: "authorization_code",
-        client_id: config.client_id.as_ref(),
+        client_id: config.idp_client_id.as_ref(),
         code,
         code_verifier,
         redirect_uri,
     };
 
-    let url = format!("{}/user_management/authenticate", &config.identity_url);
+    let url = format!("{}/user_management/authenticate", &config.idp_um_url);
     let req = client.post(url.as_str()).json(&body);
+
+    let resp = req.send().await?;
+
+    parse_result(resp).await
+}
+
+// client_credentials performs the OAuth2 client-credentials grant for Service
+// Account (machine-to-machine) auth against the WorkOS AuthKit token endpoint
+// (idp_kit_url). The supplied client_id / client_secret are the Service
+// Account's WorkOS Connect credentials. WorkOS rejects audience/scope on this
+// grant, so only grant_type/client_id/client_secret are sent. The returned token
+// has no refresh token.
+pub async fn client_credentials(
+    client: &reqwest::Client,
+    config: &TokenConfig,
+    client_id: &str,
+    client_secret: &str,
+) -> Result<Token> {
+    let mut form = std::collections::HashMap::new();
+
+    form.insert("grant_type", "client_credentials");
+    form.insert("client_id", client_id);
+    form.insert("client_secret", client_secret);
+
+    let url = format!("{}/oauth2/token", &config.idp_kit_url);
+    let req = client.post(url.as_str()).form(&form);
 
     let resp = req.send().await?;
 

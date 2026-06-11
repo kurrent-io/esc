@@ -120,7 +120,10 @@ impl Settings {
 pub struct TokenConfigOpts {
     pub audience: Option<String>,
     pub client_id: Option<String>,
+    pub idp_client_id: Option<String>,
     pub identity_url: Option<String>,
+    pub idp_kit_url: Option<String>,
+    pub idp_um_url: Option<String>,
     pub public_key: Option<String>,
 }
 

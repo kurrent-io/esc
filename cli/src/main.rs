@@ -2111,8 +2111,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(value) = &token_opts.client_id {
             token_config.client_id = value.clone();
         }
+        if let Some(value) = &token_opts.idp_client_id {
+            token_config.idp_client_id = value.clone();
+        }
         if let Some(value) = &token_opts.identity_url {
             token_config.identity_url = value.clone();
+        }
+        if let Some(value) = &token_opts.idp_kit_url {
+            token_config.idp_kit_url = value.clone();
+        }
+        if let Some(value) = &token_opts.idp_um_url {
+            token_config.idp_um_url = value.clone();
         }
         if let Some(value) = &token_opts.public_key {
             token_config.public_key = value.clone();

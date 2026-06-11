@@ -41,15 +41,35 @@ impl TokenStore {
         client: &reqwest::Client,
         noninteractive: bool,
     ) -> Result<Token> {
+        match self.access_if_present(client).await? {
+            Some(token) => Ok(token),
+            None => match noninteractive {
+                true => Err(StoreError::new(
+                    "No previous token was found and interactive mode is disabled.",
+                )),
+                false => self.create_token_from_prompt(client).await,
+            },
+        }
+    }
+
+    // access_if_present returns the active token only if one is already stored,
+    // refreshing it when expired. It never prompts; returns None when no token
+    // file exists, so callers can fall back to another auth method.
+    pub async fn access_if_present(
+        &mut self,
+        client: &reqwest::Client,
+    ) -> Result<Option<Token>> {
         let previous_token = self.token_file.load().await?;
         match previous_token {
+            None => Ok(None),
             Some(previous_token) => match self.validator.parse_token_claims(&previous_token) {
                 Ok(claims) => {
                     if validate_claims(&claims) {
-                        Ok(previous_token)
+                        Ok(Some(previous_token))
                     } else {
                         self.refresh_active_token_provided_token(client, previous_token)
                             .await
+                            .map(Some)
                     }
                 }
                 Err(e) => match e.kind() {
@@ -58,18 +78,13 @@ impl TokenStore {
                         info!("Refreshing token...");
                         self.refresh_active_token_provided_token(client, previous_token)
                             .await
+                            .map(Some)
                     }
                     _ => Err(StoreError::new(
                         "can't access token - error parsing current token's claims",
                     )
                     .source(Box::new(e))),
                 },
-            },
-            None => match noninteractive {
-                true => Err(StoreError::new(
-                    "No previous token was found and interactive mode is disabled.",
-                )),
-                false => self.create_token_from_prompt(client).await,
             },
         }
     }
@@ -193,6 +208,11 @@ impl TokenStore {
 
     pub async fn show(&self) -> Result<Option<Token>> {
         self.token_file.load().await
+    }
+
+    // delete removes the stored token file. Returns true if a file was removed.
+    pub async fn delete(&self) -> Result<bool> {
+        self.token_file.delete().await
     }
 
     pub async fn save_token(&mut self, token: Token) -> Result<Token> {

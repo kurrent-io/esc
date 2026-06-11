@@ -59,7 +59,7 @@ fn build_authorize_url(
     code_challenge: &str,
 ) -> String {
     let params = [
-        ("client_id", config.client_id.as_str()),
+        ("client_id", config.idp_client_id.as_str()),
         ("redirect_uri", redirect_uri),
         ("response_type", "code"),
         ("provider", "authkit"),
@@ -75,7 +75,10 @@ fn build_authorize_url(
         .collect::<Vec<_>>()
         .join("&");
 
-    format!("{}/user_management/authorize?{}", config.identity_url, query)
+    format!(
+        "{}/user_management/authorize?{}",
+        config.idp_um_url, query
+    )
 }
 
 fn wait_for_callback(
