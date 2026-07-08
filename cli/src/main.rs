@@ -1935,6 +1935,9 @@ async fn get_token(
     // 1. Service Account client-credentials (ESC_CLIENT_ID / ESC_CLIENT_SECRET).
     match (client_id, client_secret) {
         (Some(id), Some(secret)) => {
+            eprintln!(
+                "esc: authenticating via service account client credentials (client_id={id})"
+            );
             let token = esc_client_base::identity::operations::client_credentials(
                 &client,
                 &token_config,
@@ -1953,6 +1956,7 @@ async fn get_token(
 
     // 2. Explicit --refresh-token flag (overrides any stored PKCE token).
     if let Some(refresh_token) = refresh_token {
+        eprintln!("esc: authenticating via refresh token (--refresh-token)");
         let otp_prompt: Option<esc_client_base::identity::operations::OtpPrompt> =
             match noninteractive {
                 true => None,
@@ -1974,10 +1978,12 @@ async fn get_token(
         esc_client_store::token_store_kind(esc_client_store::TokenKind::Pkce, token_config.clone())
             .await?;
     if let Some(token) = pkce_store.access_if_present(&client).await? {
+        eprintln!("esc: authenticating via stored PKCE login token");
         return Ok(token);
     }
 
     // 4. Legacy store (refresh-or-prompt).
+    eprintln!("esc: authenticating via stored legacy login token");
     let mut store =
         esc_client_store::token_store_kind(esc_client_store::TokenKind::Legacy, token_config)
             .await?;
