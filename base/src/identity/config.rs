@@ -29,10 +29,10 @@ impl Default for TokenConfig {
         Self {
             audience: "https://api.eventstore.cloud".to_owned(),
             client_id: "OraYp3cFES9O8aWuQtnqi1A7m534iTwt".to_owned(),
-            idp_client_id: "client_01KNKQ1PFYQ9Q42E57794XCF5P".to_owned(),
+            idp_client_id: "client_01KNKQ1Q05JFK2HMRSV3H2QFF0".to_owned(),
             identity_url: "https://identity.eventstore.com".to_owned(),
-            idp_kit_url: "https://secure-book-07-staging.authkit.app".to_owned(),
-            idp_um_url: "https://api.workos.com".to_owned(),
+            idp_kit_url: "https://auth.kurrent.io".to_owned(),
+            idp_um_url: "https://api.auth.kurrent.io".to_owned(),
         }
     }
 }
