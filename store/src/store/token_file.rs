@@ -62,4 +62,15 @@ impl TokenFile {
             })?;
         Ok(token)
     }
+
+    // delete removes the token file. Returns true if a file existed and was removed.
+    pub async fn delete(&self) -> Result<bool> {
+        match fs::remove_file(&self.file_path).await {
+            Ok(()) => Ok(true),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(false),
+            Err(err) => Err(StoreError::new("error removing token file")
+                .details(format!("file = {:?}", self.file_path))
+                .source(Box::new(err))),
+        }
+    }
 }

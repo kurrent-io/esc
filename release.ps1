@@ -1,7 +1,7 @@
 [CmdletBinding()]
 Param(
   [Parameter(Mandatory=$true)]
-  [ValidateSet("windows-2022", "ubuntu-22.04", "ubuntu-24.04", "macos-13", "macos-14")]
+  [ValidateSet("windows-2022", "ubuntu-22.04", "ubuntu-24.04", "macos-15-intel", "macos-14")]
   [string]$Runner,
 
   [Parameter(Mandatory=$true)]
@@ -94,7 +94,7 @@ switch($Runner)
     Pop-Location
   }
 
-  { $_ -in @("macos-13", "macos-14") }
+  { $_ -in @("macos-15-intel", "macos-14") }
   {
     cargo build --bin esc --release
 
