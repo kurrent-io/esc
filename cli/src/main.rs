@@ -8,6 +8,7 @@ extern crate serde_derive;
 
 mod config;
 mod constants;
+mod login;
 mod output;
 mod utils;
 mod v1;
@@ -69,6 +70,8 @@ pub struct Opt {
 #[derive(StructOpt, Debug)]
 enum Command {
     Access(Access),
+    Login(Login),
+    Logout(Logout),
     Audit(Audit),
     Resources(Resources),
     Infra(Infra),
@@ -83,6 +86,21 @@ enum Command {
     #[structopt(about = "Prints Powershell completion script in STDOUT")]
     GeneratePowershellCompletion,
 }
+
+#[derive(StructOpt, Debug)]
+#[structopt(about = "Authenticate via browser-based PKCE OAuth flow")]
+struct Login {
+    #[structopt(
+        long,
+        default_value = "120",
+        help = "Seconds to wait for the browser callback before timing out"
+    )]
+    timeout_secs: u64,
+}
+
+#[derive(StructOpt, Debug)]
+#[structopt(about = "Remove stored PKCE login tokens")]
+struct Logout {}
 
 #[derive(StructOpt, Debug)]
 #[structopt(
@@ -1907,32 +1925,71 @@ impl esc_api::Authorization for StaticAuthorization {
 
 async fn get_token(
     token_config: esc_api::TokenConfig,
+    client_id: Option<String>,
+    client_secret: Option<String>,
     refresh_token: Option<String>,
     noninteractive: bool,
 ) -> Result<esc_api::Token, Box<dyn std::error::Error>> {
     let client = build_http_client();
-    match refresh_token {
-        Some(refresh_token) => {
-            let otp_prompt: Option<esc_client_base::identity::operations::OtpPrompt> =
-                match noninteractive {
-                    true => None,
-                    false => Some(esc_client_store::prompt_for_otp),
-                };
-            let refreshed_token = esc_client_base::identity::operations::refresh(
+
+    // 1. Service Account client-credentials (ESC_CLIENT_ID / ESC_CLIENT_SECRET).
+    match (client_id, client_secret) {
+        (Some(id), Some(secret)) => {
+            eprintln!(
+                "esc: authenticating via service account client credentials (client_id={id})"
+            );
+            let token = esc_client_base::identity::operations::client_credentials(
                 &client,
                 &token_config,
-                &refresh_token,
-                otp_prompt,
+                &id,
+                &secret,
             )
             .await?;
-            Ok(refreshed_token)
+
+            return Ok(token);
         }
-        None => {
-            let mut store = esc_client_store::token_store(token_config).await?;
-            let token = store.access(&client, noninteractive).await?;
-            Ok(token)
+        (Some(_), None) | (None, Some(_)) => {
+            return Err("ESC_CLIENT_ID and ESC_CLIENT_SECRET must both be set".into());
         }
+        (None, None) => {}
     }
+
+    // 2. Explicit --refresh-token flag (overrides any stored PKCE token).
+    if let Some(refresh_token) = refresh_token {
+        eprintln!("esc: authenticating via refresh token (--refresh-token)");
+        let otp_prompt: Option<esc_client_base::identity::operations::OtpPrompt> =
+            match noninteractive {
+                true => None,
+                false => Some(esc_client_store::prompt_for_otp),
+            };
+        let refreshed_token = esc_client_base::identity::operations::refresh(
+            &client,
+            &token_config,
+            &refresh_token,
+            otp_prompt,
+        )
+        .await?;
+
+        return Ok(refreshed_token);
+    }
+
+    // 3. Stored PKCE token (refreshed if expired; never prompts).
+    let mut pkce_store =
+        esc_client_store::token_store_kind(esc_client_store::TokenKind::Pkce, token_config.clone())
+            .await?;
+    if let Some(token) = pkce_store.access_if_present(&client).await? {
+        eprintln!("esc: authenticating via stored PKCE login token");
+        return Ok(token);
+    }
+
+    // 4. Legacy store (refresh-or-prompt).
+    eprintln!("esc: authenticating via stored legacy login token");
+    let mut store =
+        esc_client_store::token_store_kind(esc_client_store::TokenKind::Legacy, token_config)
+            .await?;
+    let token = store.access(&client, noninteractive).await?;
+
+    Ok(token)
 }
 
 struct TrafficSpy {
@@ -1962,6 +2019,8 @@ impl esc_api::RequestObserver for TrafficSpy {
 struct ClientBuilder {
     base_url: String,
     observer: Option<Arc<dyn esc_api::RequestObserver + Send + Sync>>,
+    client_id: Option<String>,
+    client_secret: Option<String>,
     refresh_token: Option<String>,
     token_config: esc_api::TokenConfig,
     noninteractive: bool,
@@ -1969,7 +2028,14 @@ struct ClientBuilder {
 
 impl ClientBuilder {
     pub async fn create(self) -> Result<esc_api::Client, Box<dyn std::error::Error>> {
-        let token = get_token(self.token_config, self.refresh_token, self.noninteractive).await?;
+        let token = get_token(
+            self.token_config,
+            self.client_id,
+            self.client_secret,
+            self.refresh_token,
+            self.noninteractive,
+        )
+        .await?;
         let authorization = StaticAuthorization {
             authorization_header: token.authorization_header(),
         };
@@ -2045,17 +2111,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(value) = &token_opts.client_id {
             token_config.client_id = value.clone();
         }
+        if let Some(value) = &token_opts.idp_client_id {
+            token_config.idp_client_id = value.clone();
+        }
         if let Some(value) = &token_opts.identity_url {
             token_config.identity_url = value.clone();
         }
-        if let Some(value) = &token_opts.public_key {
-            token_config.public_key = value.clone();
+        if let Some(value) = &token_opts.idp_kit_url {
+            token_config.idp_kit_url = value.clone();
+        }
+        if let Some(value) = &token_opts.idp_um_url {
+            token_config.idp_um_url = value.clone();
         }
     }
+
+    // Service Account credentials are env-var only (never stored on disk).
+    let client_id = std::env::var("ESC_CLIENT_ID")
+        .ok()
+        .filter(|s| !s.is_empty());
+    let client_secret = std::env::var("ESC_CLIENT_SECRET")
+        .ok()
+        .filter(|s| !s.is_empty());
 
     let client_builder = ClientBuilder {
         base_url,
         observer,
+        client_id,
+        client_secret,
         refresh_token: opt.refresh_token.clone(),
         token_config: token_config.clone(),
         noninteractive: opt.noninteractive,
@@ -3275,6 +3357,29 @@ async fn call_api<'a, 'b>(
                 .await?;
             }
         },
+
+        Command::Login(params) => {
+            let opts = login::LoginOptions {
+                timeout: std::time::Duration::from_secs(params.timeout_secs),
+            };
+            let token = login::run_login(&token_config, opts).await?;
+            let mut store =
+                esc_client_store::token_store_kind(esc_client_store::TokenKind::Pkce, token_config)
+                    .await?;
+            store.save_token(token).await?;
+            println!("Login successful. Token stored.");
+        }
+
+        Command::Logout(_) => {
+            let store =
+                esc_client_store::token_store_kind(esc_client_store::TokenKind::Pkce, token_config)
+                    .await?;
+            if store.delete().await? {
+                println!("Logged out. Stored PKCE token removed.");
+            } else {
+                println!("No PKCE token to remove.");
+            }
+        }
 
         Command::GenerateBashCompletion => {
             // clap_complete::generate_to(clap_complete::shells::Bashg, clap_app, "esc", out_dir)

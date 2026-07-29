@@ -4,22 +4,63 @@
 
 ## Authentication
 
-If you use `esc` for the first time, you need to generate a token first. By default, `esc` will interactively
-ask your email and password to create your token.
+`esc` supports several authentication methods. When making an authenticated call it resolves
+credentials in a fixed order and uses the **first one available**:
 
-If you prefer to have a non-interactive way to create your token, enter that command instead:
+1. **Service Account** — `ESC_CLIENT_ID` / `ESC_CLIENT_SECRET` environment variables.
+2. **`--refresh-token` flag** — explicit refresh token (overrides a stored login).
+3. **Browser login (PKCE)** — token stored by `esc login`.
+4. **Legacy** — email/password (interactive prompt or `esc access tokens create`).
+
+### Browser login (recommended)
+
+Log in interactively through your browser:
+
+```
+esc login
+```
+
+This runs a browser-based PKCE OAuth flow and stores the resulting token. `esc` refreshes it
+automatically; you don't need to do anything until the refresh token itself expires.
+
+To remove the stored login token:
+
+```
+esc logout
+```
+
+### Service Account (machine-to-machine)
+
+Set both environment variables; `esc` uses the OAuth2 client-credentials flow. No prompt, and
+nothing is written to disk:
+
+```
+export ESC_CLIENT_ID=<client-id>
+export ESC_CLIENT_SECRET=<client-secret>
+esc resources organizations list
+```
+
+This takes priority over all other methods, making it the preferred option for CI and automation.
+
+### Legacy email/password
+
+If you have neither a Service Account nor a stored login token, `esc` falls back to interactively
+asking your email and password. For a non-interactive variant:
 
 ```
 esc access tokens create --email <email> --unsafe-password <password>
 ```
 
-`esc` will refresh your token automatically without you needing to do anything. Rest assured that
-`esc` doesn't store your password in your system.
+Rest assured that `esc` doesn't store your password in your system.
 
 ## Scripting / Continuous Integration (CI) Usage
 
-`esc` exposes `--refresh-token=<your refresh token>` parameter to ease scripting integration. If set, `esc` won't rely
-on the filesystem to fetch your refresh token. Your refresh token won't be persisted on the filesystem neither.
+For CI, prefer **Service Account** credentials via `ESC_CLIENT_ID` / `ESC_CLIENT_SECRET` (see above) —
+nothing touches the filesystem.
+
+Alternatively, `esc` exposes a `--refresh-token=<your refresh token>` parameter. If set, `esc` won't
+rely on the filesystem to fetch your refresh token, and the refresh token won't be persisted on the
+filesystem either. An explicit `--refresh-token` overrides a stored browser-login token.
 
 ## Implicit parameters
 

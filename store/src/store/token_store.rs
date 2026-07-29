@@ -3,12 +3,14 @@ use super::standard_claims::StandardClaims;
 use super::token_file::TokenFile;
 use super::token_validator::TokenValidator;
 use crate::errors::{Result, StoreError};
+use crate::typical::TokenKind;
 use esc_client_base::identity::operations;
 use esc_client_base::identity::TokenConfig;
 use esc_client_base::Token;
 use std::path::Path;
 
 pub struct TokenStore {
+    kind: TokenKind,
     token_config: TokenConfig,
     token_file: TokenFile,
     validator: TokenValidator,
@@ -17,6 +19,7 @@ pub struct TokenStore {
 impl TokenStore {
     pub fn new(
         directory: &Path,
+        kind: TokenKind,
         token_config: TokenConfig,
         validator: TokenValidator,
     ) -> Result<Self> {
@@ -29,6 +32,7 @@ impl TokenStore {
         let token_file = TokenFile::new(token_path);
 
         Ok(TokenStore {
+            kind,
             token_config,
             token_file,
             validator,
@@ -41,30 +45,8 @@ impl TokenStore {
         client: &reqwest::Client,
         noninteractive: bool,
     ) -> Result<Token> {
-        let previous_token = self.token_file.load().await?;
-        match previous_token {
-            Some(previous_token) => match self.validator.parse_token_claims(&previous_token) {
-                Ok(claims) => {
-                    if validate_claims(&claims) {
-                        Ok(previous_token)
-                    } else {
-                        self.refresh_active_token_provided_token(client, previous_token)
-                            .await
-                    }
-                }
-                Err(e) => match e.kind() {
-                    jsonwebtoken::errors::ErrorKind::ExpiredSignature => {
-                        error!("Invalid token: {}", e);
-                        info!("Refreshing token...");
-                        self.refresh_active_token_provided_token(client, previous_token)
-                            .await
-                    }
-                    _ => Err(StoreError::new(
-                        "can't access token - error parsing current token's claims",
-                    )
-                    .source(Box::new(e))),
-                },
-            },
+        match self.access_if_present(client).await? {
+            Some(token) => Ok(token),
             None => match noninteractive {
                 true => Err(StoreError::new(
                     "No previous token was found and interactive mode is disabled.",
@@ -72,6 +54,39 @@ impl TokenStore {
                 false => self.create_token_from_prompt(client).await,
             },
         }
+    }
+
+    // access_if_present returns the active token only if one is already stored,
+    // refreshing it when expired. It never prompts; returns None when no token
+    // file exists, so callers can fall back to another auth method.
+    pub async fn access_if_present(&mut self, client: &reqwest::Client) -> Result<Option<Token>> {
+        let previous_token = match self.token_file.load().await? {
+            Some(token) => token,
+            None => return Ok(None),
+        };
+
+        let needs_refresh = match self.validator.parse_token_claims(&previous_token) {
+            Ok(claims) => !validate_claims(&claims),
+            Err(e) if e.kind() == &jsonwebtoken::errors::ErrorKind::ExpiredSignature => {
+                error!("Invalid token: {}", e);
+                info!("Refreshing token...");
+                true
+            }
+            Err(e) => {
+                return Err(StoreError::new(
+                    "can't access token - error parsing current token's claims",
+                )
+                .source(Box::new(e)))
+            }
+        };
+
+        if !needs_refresh {
+            return Ok(Some(previous_token));
+        }
+
+        self.refresh_active_token_provided_token(client, previous_token)
+            .await
+            .map(Some)
     }
 
     pub async fn create_token_from_prompt(&mut self, client: &reqwest::Client) -> Result<Token> {
@@ -143,13 +158,25 @@ impl TokenStore {
                 ))
             }
         };
-        let result = operations::refresh(
-            client,
-            &self.token_config,
-            refresh_token,
-            Some(prompt_for_otp),
-        )
-        .await;
+        // PKCE tokens are minted by WorkOS and must be refreshed against WorkOS;
+        // legacy tokens use the Auth0 refresh-token grant. WorkOS rotates refresh
+        // tokens, so the PKCE path persists the whole returned token (including
+        // the new refresh_token), whereas the legacy path only swaps the access
+        // token onto the existing record.
+        let result = match self.kind {
+            TokenKind::Pkce => {
+                operations::refresh_workos(client, &self.token_config, refresh_token).await
+            }
+            TokenKind::Legacy => {
+                operations::refresh(
+                    client,
+                    &self.token_config,
+                    refresh_token,
+                    Some(prompt_for_otp),
+                )
+                .await
+            }
+        };
         let refreshed_token = match result {
             Ok(token) => Ok(token),
             Err(err) => {
@@ -160,7 +187,10 @@ impl TokenStore {
                 )
             }
         }?;
-        let token = token.update_access_token(refreshed_token.access_token());
+        let token = match self.kind {
+            TokenKind::Pkce => refreshed_token,
+            TokenKind::Legacy => token.update_access_token(refreshed_token.access_token()),
+        };
         self.token_file.save(token).await
     }
 
@@ -193,6 +223,15 @@ impl TokenStore {
 
     pub async fn show(&self) -> Result<Option<Token>> {
         self.token_file.load().await
+    }
+
+    // delete removes the stored token file. Returns true if a file was removed.
+    pub async fn delete(&self) -> Result<bool> {
+        self.token_file.delete().await
+    }
+
+    pub async fn save_token(&mut self, token: Token) -> Result<Token> {
+        self.token_file.save(token).await
     }
 }
 

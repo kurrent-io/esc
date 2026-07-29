@@ -189,6 +189,80 @@ pub async fn create_with_otp(
     parse_result(resp).await
 }
 
+pub async fn exchange_code(
+    client: &reqwest::Client,
+    config: &TokenConfig,
+    code: &str,
+    code_verifier: &str,
+    redirect_uri: &str,
+) -> Result<Token> {
+    let mut form = std::collections::HashMap::new();
+
+    form.insert("grant_type", "authorization_code");
+    form.insert("client_id", config.idp_client_id.as_ref());
+    form.insert("code", code);
+    form.insert("code_verifier", code_verifier);
+    form.insert("redirect_uri", redirect_uri);
+
+    let url = format!("{}/user_management/authenticate", &config.idp_um_url);
+    let req = client.post(url.as_str()).form(&form);
+
+    let resp = req.send().await?;
+
+    parse_result(resp).await
+}
+
+// client_credentials performs the OAuth2 client-credentials grant for Service
+// Account (machine-to-machine) auth against the WorkOS AuthKit token endpoint
+// (idp_kit_url). The supplied client_id / client_secret are the Service
+// Account's WorkOS Connect credentials. WorkOS rejects audience/scope on this
+// grant, so only grant_type/client_id/client_secret are sent. The returned token
+// has no refresh token.
+pub async fn client_credentials(
+    client: &reqwest::Client,
+    config: &TokenConfig,
+    client_id: &str,
+    client_secret: &str,
+) -> Result<Token> {
+    let mut form = std::collections::HashMap::new();
+
+    form.insert("grant_type", "client_credentials");
+    form.insert("client_id", client_id);
+    form.insert("client_secret", client_secret);
+
+    let url = format!("{}/oauth2/token", &config.idp_kit_url);
+    let req = client.post(url.as_str()).form(&form);
+
+    let resp = req.send().await?;
+
+    parse_result(resp).await
+}
+
+// refresh_workos performs the WorkOS User Management refresh-token grant for
+// tokens minted by the interactive PKCE login flow. It posts to the same
+// endpoint as exchange_code ({idp_um_url}/user_management/authenticate) using
+// the WorkOS client id (idp_client_id). WorkOS rotates refresh tokens, so the
+// returned Token carries a new refresh_token that callers must persist in place
+// of the old one.
+pub async fn refresh_workos(
+    client: &reqwest::Client,
+    config: &TokenConfig,
+    refresh_token: &str,
+) -> Result<Token> {
+    let mut form = std::collections::HashMap::new();
+
+    form.insert("grant_type", "refresh_token");
+    form.insert("client_id", config.idp_client_id.as_ref());
+    form.insert("refresh_token", refresh_token);
+
+    let url = format!("{}/user_management/authenticate", &config.idp_um_url);
+    let req = client.post(url.as_str()).form(&form);
+
+    let resp = req.send().await?;
+
+    parse_result(resp).await
+}
+
 pub async fn refresh(
     client: &reqwest::Client,
     config: &TokenConfig,

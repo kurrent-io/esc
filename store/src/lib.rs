@@ -18,3 +18,5 @@ pub use store::TokenValidator;
 
 pub use typical::load_settings;
 pub use typical::token_store;
+pub use typical::token_store_kind;
+pub use typical::TokenKind;
