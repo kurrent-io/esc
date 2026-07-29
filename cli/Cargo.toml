@@ -1,6 +1,6 @@
 [package]
 name = "esc"
-version = "1.27.0"
+version = "1.30.1"
 authors = [
     "Yorick Laupa <yorick.laupa@eventstore.com>",
     "Tim Simpson <tim.simpson@eventstore.com>",
