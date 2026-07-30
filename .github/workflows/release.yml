@@ -6,8 +6,34 @@ on:
       - '*'
 
 jobs:
+  # Create the release exactly once before the build matrix fans out.
+  # When every matrix job ran lookup-or-create-release itself, concurrent
+  # jobs raced past the lookup and created duplicate releases on one tag,
+  # scattering the assets across them.
+  create-release:
+    name: Create release
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      upload_url: ${{ steps.release.outputs.upload_url }}
+    steps:
+      - name: Create version
+        id: version
+        uses: EventStore/Automations/create-version-label@master
+        with:
+          type: tag
+
+      - name: Lookup or create release
+        uses: EventStore/Automations/lookup-or-create-release@master
+        id: release
+        with:
+          build-type: release
+          github-token: ${{ secrets.GH_PAT }}
+          version: ${{ steps.version.outputs.version }}
+
   release:
     name: Release
+    needs: create-release
     strategy:
       matrix:
         include:
@@ -36,23 +62,9 @@ jobs:
           rustup update
           rustup show
 
-      - name: Create version
-        id: version
-        uses: EventStore/Automations/create-version-label@master
-        with:
-          type: tag
-
-      - name: Lookup or create release
-        uses: EventStore/Automations/lookup-or-create-release@master
-        id: release
-        with:
-          build-type: release
-          github-token: ${{ secrets.GH_PAT }}
-          version: ${{ steps.version.outputs.version }}
-
       - name: Packaging
         id: package
-        run: .\release.ps1 -Runner "${{ matrix.os }}" -Arch "${{ matrix.arch }}" -Version "${{ steps.release.outputs.version}}"
+        run: .\release.ps1 -Runner "${{ matrix.os }}" -Arch "${{ matrix.arch }}" -Version "${{ needs.create-release.outputs.version }}"
         shell: pwsh
 
       - name: Upload Release Asset
@@ -61,7 +73,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
         with:
-          upload_url: ${{ steps.release.outputs.upload_url }}
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: output/${{ steps.package.outputs.artifact_name }}
           asset_name: ${{ steps.package.outputs.artifact_name }}
           asset_content_type: ${{ steps.package.outputs.content_type }}
