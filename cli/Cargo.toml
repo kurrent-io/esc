@@ -1,6 +1,6 @@
 [package]
 name = "esc"
-version = "1.30.1"
+version = "1.30.2"
 authors = [
     "Yorick Laupa <yorick.laupa@eventstore.com>",
     "Tim Simpson <tim.simpson@eventstore.com>",
@@ -34,7 +34,10 @@ rustyline = "6.2"
 cidr = "0.1"
 clap = "2"
 clap_complete = "*"
-reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls-native-roots"] }
+reqwest = { version = "0.11", default-features = false, features = [
+    "json",
+    "rustls-tls-native-roots",
+] }
 validator = "0.10"
 sha2 = "0.10"
 base64 = "0.13"
